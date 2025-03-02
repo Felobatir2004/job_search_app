@@ -26,6 +26,8 @@ export const generalField = {
     mobileNumber: joi.string().pattern(new RegExp(/^[0-9]{11}/)),
     role: joi.string().valid("superAdmin", "Admin", "User"),
     code: joi.string().pattern(new RegExp(/^[0-9]{5}/)),
+    id: joi.string().custom(isValidObjectId),
+
 }
 
 export const validation = (Schema) =>{

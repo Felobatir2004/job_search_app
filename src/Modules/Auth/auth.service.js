@@ -171,7 +171,6 @@ export const refresh_token = async (req, res, next) => {
             tokenType: tokenTypes.refresh,
             next
         });
-        console.log(user);
         
 
         if (!user || !user._id) {

@@ -1,5 +1,6 @@
 import mongoose,  {Schema , Types, model} from "mongoose";
 import { hash } from "../../utils/hashing/hash.js";
+import { decrypt, encrypt } from "../../utils/encryption/encryption.js";
 
 
 export const genderType= {
@@ -111,6 +112,7 @@ const userSchema = new Schema({
       },
       code: String,
       expiresIn: Date,
+      _id:false
     },
   ],
 
@@ -129,4 +131,22 @@ userSchema.pre("save",function(next){
     }
     return next()
 })
+
+userSchema.pre("save",function(next){
+
+  if(this.isModified("mobileNumber")) 
+  {
+      this.mobileNumber = encrypt({plainText:this.mobileNumber, signature:process.env.ENCRYPTION_SECRET})
+  }
+  return next()
+})
+
+userSchema.post('find', function (docs) {
+  docs.forEach((doc) => {
+    if (doc.mobileNumber) {
+      doc.mobileNumber = decrypt({encrypted:doc.mobileNumber,signature:process.env.ENCRYPTION_SECRET});
+    }
+  });
+});
+
 export const UserModel = mongoose.models.User || model("User",userSchema)
