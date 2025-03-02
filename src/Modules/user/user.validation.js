@@ -6,4 +6,20 @@ export const updateUserSchema = joi
     lastName:generalField.lastName,
     userId:generalField.id
 }).required()
-export const getUserAccountSchema = joi
+export const getProfileSchema = joi
+.object({
+    userId:generalField.id
+}).required()
+
+export const updatePasswordSchema = joi
+.object({
+    oldPassword: generalField.password.required(),
+    password: generalField.password.not(joi.ref("oldPassword")).required(),
+    confirmPassword:generalField.confirmPassword.required()
+
+}).required()
+
+export const softDeleteSchema = joi
+.object({
+    userId: generalField.id.required(),
+})

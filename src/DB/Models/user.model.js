@@ -24,6 +24,12 @@ export const OTPType = {
     forgetPassword:"forgetPassword"
 }
 
+export const defaultImageCloud = 
+"https://res.cloudinary.com/dyjdubtia/image/upload/v1740098683/defaultProfileImage_uh9soq.jpg"
+
+export const defaultPublicIdCloud = "defaultProfileImage_uh9soq"
+
+
 const userSchema = new Schema({
    firstName: {
     type:String,
@@ -81,9 +87,13 @@ const userSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
   deletedAt:Date,
   bannedAt:Date,
-  uodatedBy:{
+  updatedBy:{
     type:Types.ObjectId,
     ref:"User"
   },
@@ -91,17 +101,21 @@ const userSchema = new Schema({
   profilePic:{
     secure_url:{
         type:String,
+        default: defaultImageCloud
     },
     public_id:{
         type:String,
+        default: defaultPublicIdCloud
     }
   },
   coverPic:{
     secure_url:{
         type:String,
+        default: defaultPublicIdCloud
     },
     public_id:{
         type:String,
+        default: defaultPublicIdCloud
     }
   },
   OTP: [
@@ -112,15 +126,23 @@ const userSchema = new Schema({
       },
       code: String,
       expiresIn: Date,
-      _id:false
+
     },
   ],
 
    
-},{timestamps:true})
+},{timestamps:true, toJSON:{virtuals:true} , toObject:{virtuals:true}})
+
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    delete ret.id;  
+    return ret;
+  },
+});
 
 userSchema.virtual('userName').get(function () {
-    return `${this.firstName} ${this.lastName}`;
+    return `${this.firstName} ${this.lastName}`.trim();
 });
 
 userSchema.pre("save",function(next){
@@ -141,12 +163,22 @@ userSchema.pre("save",function(next){
   return next()
 })
 
-userSchema.post('find', function (docs) {
+userSchema.post('find',{document:true , query:false}, function (docs) {
   docs.forEach((doc) => {
     if (doc.mobileNumber) {
       doc.mobileNumber = decrypt({encrypted:doc.mobileNumber,signature:process.env.ENCRYPTION_SECRET});
     }
   });
 });
+
+userSchema.post('findOne',{document:true , query:false}, function (doc) {
+    if (doc.mobileNumber) {
+      doc.mobileNumber = decrypt({encrypted:doc.mobileNumber,signature:process.env.ENCRYPTION_SECRET});
+    }
+  ;
+});
+
+
+
 
 export const UserModel = mongoose.models.User || model("User",userSchema)

@@ -8,55 +8,73 @@ export const tokenTypes = {
 }
 
 
-export const decodedToken = async ({authorization = "",tokenType = tokenTypes.access,next= {}})=>{
-    
-        const [bearer, token] = authorization.split(" ") || []
-    
-        
-        if(!bearer || !token)
-            return next(new Error("In-valid Token",{cause:401}))
-    
-        let ACCESS_SIGNATURE = undefined
-        let REFRESH_SIGNATURE = undefined
+export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.access, next }) => {
+    if (!authorization) {
+        return next(new Error("Invalid Token: Authorization header missing", { cause: 401 }));
+    }
 
-    
-        switch (bearer) {
-            case "Admin":
-                ACCESS_SIGNATURE = process.env.ADMIN_ACCESS_TOKEN
-                REFRESH_SIGNATURE = process.env.ADMIN_REFRESH_TOKEN
-                break;
-            case "User":
-                ACCESS_SIGNATURE = process.env.USER_ACCESS_TOKEN
-                REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN
-                break;
-            default:
-                break;
-        }
-    
-        const decoded = verifyToken({
-            token , 
-            signature:tokenTypes.access ? ACCESS_SIGNATURE : REFRESH_SIGNATURE
-        })
-        
-        const user = await dbService.find({model:UserModel , filter: {_id:decoded.id}})
-        if(!user) return next(new Error("User Not Found",{cause: 404}))
-        
-        if(user.changeCredentials?.getTime >=decoded.iat * 1000)
-            return next(new Error("In-valid token",{cause: 400}))
-        return user;
-}
+    const [bearer, token] = authorization.split(" ");
 
-export const authentication =  () =>{
-    return asyncHandler(async(req,res,next)=>{
-        const {authorization} = req.headers;
-        req.user = await decodedToken({
+    if (!bearer || !token) {
+        return next(new Error("Invalid Token: Bearer or token missing", { cause: 401 }));
+    }
+
+    let ACCESS_SIGNATURE, REFRESH_SIGNATURE;
+
+    switch (bearer) {
+        case "Admin":
+            ACCESS_SIGNATURE = process.env.ADMIN_ACCESS_TOKEN;
+            REFRESH_SIGNATURE = process.env.ADMIN_REFRESH_TOKEN;
+            break;
+        case "User":
+            ACCESS_SIGNATURE = process.env.USER_ACCESS_TOKEN;
+            REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN;
+            break;
+        default:
+            return next(new Error("Invalid Token: Unknown bearer type", { cause: 401 }));
+    }
+
+    const signature = tokenType === tokenTypes.access ? ACCESS_SIGNATURE : REFRESH_SIGNATURE;
+
+    let decoded;
+    try {
+        decoded = verifyToken({ token, signature });
+    } catch (err) {
+        return next(new Error("Invalid Token: JWT verification failed", { cause: 401 }));
+    }
+
+    const user = await dbService.findOne({ model: UserModel, filter: { _id: decoded.id } });
+
+    if (!user) {
+        return next(new Error("User Not Found", { cause: 404 }));
+    }
+
+    if (user.changeCredentials?.getTime() >= decoded.iat * 1000) {
+        return next(new Error("Invalid Token: Token has been invalidated", { cause: 400 }));
+    }
+
+    return user;
+};
+
+export const authentication = () => {
+    return asyncHandler(async (req, res, next) => {
+        const { authorization } = req.headers;
+
+        const user = await decodedToken({
             authorization,
-            tokenType:tokenTypes.access,
+            tokenType: tokenTypes.access,
             next,
-        })
-        return next()
-    })
-}
+        });
+
+        if (!user) {
+            return next(new Error("Unauthorized", { cause: 401 }));
+        }
+
+        req.user = user;
+
+        return next();
+    });
+};
 
 export const allowTo = (role = [])=>{
     return asyncHandler(async(req,res,next)=>{
