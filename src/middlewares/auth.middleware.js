@@ -12,6 +12,7 @@ export const decodedToken = async ({authorization = "",tokenType = tokenTypes.ac
     
         const [bearer, token] = authorization.split(" ") || []
     
+        
         if(!bearer || !token)
             return next(new Error("In-valid Token",{cause:401}))
     
@@ -37,7 +38,7 @@ export const decodedToken = async ({authorization = "",tokenType = tokenTypes.ac
             signature:tokenTypes.access ? ACCESS_SIGNATURE : REFRESH_SIGNATURE
         })
         
-        const user = await dbService.findOne({model:UserModel , filter: {_id:decoded.id,isDeleted:false}})
+        const user = await dbService.findOne({model:UserModel , filter: {_id:decoded.id}})
         if(!user) return next(new Error("User Not Found",{cause: 404}))
         
         if(user.changeCredentials?.getTime >=decoded.iat * 1000)

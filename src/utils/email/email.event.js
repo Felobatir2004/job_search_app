@@ -34,13 +34,6 @@ emailEmitter.on("updateEmail",async(email,userName,id)=>{
 export const sendCode = async ({data = {}, subjectType = subject.verifyEmail})=>{
     
     const {userName , email , id} = data;
-
-    
-    console.log(otp);
-    
-    
-    
-    console.log(hashOTP);
     
     let updateData = {}
 
