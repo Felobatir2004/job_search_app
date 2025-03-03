@@ -1,6 +1,7 @@
 import connectDB from "./DB/connection.js"
 import authRouter from "./Modules/Auth/auth.controller.js"
 import userRouter from "./Modules/user/user.controller.js"
+import companyRouter from "./Modules/company/company.controller.js"
 import deleteExpiredOTPs from "./utils/cronJobs/cronJobs.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error handling/asyncHandler.js"
 import cors from "cors";
@@ -34,6 +35,8 @@ const bootstrap = async (app, express)=>{
 
     app.use("/auth",authRouter)
     app.use("/user",userRouter)
+    app.use("/company",companyRouter)
+
 
     app.all("*",notFoundHandler)
     app.use(globalErrorHandler)

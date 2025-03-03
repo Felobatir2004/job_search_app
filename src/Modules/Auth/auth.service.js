@@ -6,7 +6,7 @@ import { compareHash, hash } from "../../utils/hashing/hash.js"
 import { generateToken } from "../../utils/token/token.js"
 import {decodedToken, tokenTypes} from "../../middlewares/auth.middleware.js"
 export const signUp = async  (req,res,next)=>{
-    const {firstName, lastName, email , password  , gender , mobileNumber}= req.body
+    const {firstName, lastName, email , password  , gender , mobileNumber,role}= req.body
 
     const user = await dbService.findOne({model: UserModel , filter: {email}})
     if(user) return next (new Error("User already exists",{cause: 409}))
@@ -24,7 +24,8 @@ export const signUp = async  (req,res,next)=>{
             OTPtype:OTPType.confirmEmail,
             code:otp,
             expiresIn:Date.now() + 5 * 60 * 1000,
-        }]
+        }],
+        role
         },
 
     })

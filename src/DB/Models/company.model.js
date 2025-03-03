@@ -1,6 +1,13 @@
 import mongoose,  {Schema , Types, model} from "mongoose";
 
 
+export const defaultImageCloud = 
+"https://res.cloudinary.com/dyjdubtia/image/upload/v1740098683/defaultProfileImage_uh9soq.jpg"
+
+export const defaultPublicIdCloud = "defaultProfileImage_uh9soq"
+
+
+
 const companySchema = new Schema({
     companyName:{
         type:String,
@@ -50,22 +57,30 @@ const companySchema = new Schema({
     logo:{
         secure_url:{
             type:String,
+            default: defaultImageCloud
         },
         public_id:{
             type:String,
+            default: defaultPublicIdCloud
         }
     },
     coverPic:{
         secure_url:{
             type:String,
+            default: defaultImageCloud
         },
         public_id:{
             type:String,
+            default: defaultPublicIdCloud
         }
     },
     HRs:{
         type:[Types.ObjectId],
         ref:"User"
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     },
     bannedAt:Date,
     deletedAt:Date,

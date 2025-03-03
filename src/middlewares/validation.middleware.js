@@ -27,7 +27,22 @@ export const generalField = {
     role: joi.string().valid("superAdmin", "Admin", "User"),
     code: joi.string().pattern(new RegExp(/^[0-9]{5}/)),
     id: joi.string().custom(isValidObjectId),
-
+    description: joi.string().min(2).max(5000).required(),
+    industry: joi.string().required(),
+    address: joi.string(),
+    numberOfEmployees: joi
+    .string()
+    .pattern(new RegExp(/^[0-9]{2}-[0-9]{2}$/))
+    .required(),
+    HRs: joi.array().items(
+        joi.string().pattern(/^[0-9a-fA-F]{24}$/) // MongoDB ObjectId validation
+      ).optional(),
+    companyEmail: joi.string().email({
+        minDomainSegments: 2,
+        maxDomainSegments: 2,
+        tlds: { allow: ["com", "net"] },
+    }).required(),
+    companyName: joi.string().min(3).max(30).required(),
 }
 
 export const validation = (Schema) =>{
