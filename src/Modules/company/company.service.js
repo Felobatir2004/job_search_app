@@ -99,6 +99,23 @@ export const searchComapnyWithName = async (req, res, next) => {
     return res.status(200).json({ success: true, data: { company } });
 }
 
+export const getCompanyWithJobs = async (req, res, next) => {
+    const { companyId } = req.params;
+
+    // Find company and populate virtual field 'jobs'
+    const company = await CompanyModel.findById(companyId).populate('jobs');
+
+    if (!company) {
+        return next(new Error("Company not found", { cause: 404 }));
+    }
+
+    return res.status(200).json({ 
+        success: true, 
+        data: { company } 
+    });
+
+};
+
 export const uploadlogo = async (req, res, next) => {
     const {companyId} = req.params;
     const company = await dbService.findByIdAndUpdate({

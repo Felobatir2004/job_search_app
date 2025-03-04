@@ -100,9 +100,18 @@ const companySchema = new Schema({
 
 },{timestamps:true})
 
+companySchema.virtual('jobs', {
+    ref: 'JobOpportunity',
+    localField: '_id',
+    foreignField: 'company'
+});
+companySchema.set('toObject', { virtuals: true });
+companySchema.set('toJSON', { virtuals: true });
+
 companySchema.pre('findOneAndDelete', async function (next) {
     const companyId = this.getQuery()._id;
     console.log(`Deleting related data for company ${companyId}`);
     next();
   });
+
 export const CompanyModel = mongoose.models.Company || model("Company",companySchema)

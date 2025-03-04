@@ -37,6 +37,12 @@ router.get(
     validation(companyValidation.getCompanySchema),
     asyncHandler(companyService.searchComapnyWithName)
 )
+router.get(
+    "/getCompanyWithJobs/:companyId",
+    authentication(),
+    allowTo(["User","Admin"]),
+    asyncHandler(companyService.getCompanyWithJobs)
+)
 
 router.post(
     "/uploadLogo/:companyId",

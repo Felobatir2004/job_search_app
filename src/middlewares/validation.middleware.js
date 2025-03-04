@@ -43,6 +43,13 @@ export const generalField = {
         tlds: { allow: ["com", "net"] },
     }).required(),
     companyName: joi.string().min(3).max(30).required(),
+        jobTitle:joi.string().required(),
+        jobLocation:joi.string().valid("onsite","remote","hybrid").required(),
+        workingTime:joi.string().valid("fullTime","partTime").required(),
+        seniorityLevel:joi.string().valid("fresh","junior","mid","senior","team_lead","CTO").required(),
+        jobDescription:joi.string().required(),
+        technicalSkills:joi.array().items(joi.string()).required(),
+        softSkills:joi.array().items(joi.string()).required(),
 }
 
 export const validation = (Schema) =>{

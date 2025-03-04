@@ -88,4 +88,21 @@ jobOpportunitySchema.pre('findOneAndUpdate', function (next) {
     next();
   });
 
+  jobOpportunitySchema.query.paginate = async function(page, limit = 10) {
+    page = page ? parseInt(page) : 1;
+    const skip = (page - 1) * limit;
+
+    const data = await this.skip(skip).limit(limit);
+    const totalItems = await this.model.countDocuments(this.getFilter());
+
+    return {
+        data,
+        totalItems,
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        itemsPerPage: data.length
+    };
+};
+
+
 export const JobOpportunityModel = mongoose.models.JobOpportunity || model("JobOpportunity",jobOpportunitySchema)
