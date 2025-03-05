@@ -82,6 +82,10 @@ const companySchema = new Schema({
         type: Boolean,
         default: false
     },
+    isBanned: {
+        type: Boolean,
+        default: false
+    },
     bannedAt:Date,
     deletedAt:Date,
     legalAttachment:{

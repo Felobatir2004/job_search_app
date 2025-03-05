@@ -4,6 +4,7 @@ import userRouter from "./Modules/user/user.controller.js"
 import companyRouter from "./Modules/company/company.controller.js"
 import jobRouter from "./Modules/jobs/job.controller.js"
 import chatRouter from "./Modules/Chat/chat.controller.js"
+import adminRouter from "./Modules/Admin/admin.controller.js"
 import deleteExpiredOTPs from "./utils/cronJobs/cronJobs.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error handling/asyncHandler.js"
 import cors from "cors";
@@ -12,6 +13,8 @@ import session from 'express-session';
 import passport from 'passport'
 import"./Modules/Auth/googleAuth.js"
 import googleAuthRouter from "./Modules/Auth/googleAuth.router.js"
+import { createHandler } from "graphql-http/lib/use/express"
+import {schema} from "./Modules/app.graph.js"
 const bootstrap = async (app, express)=>{
 
     await connectDB()
@@ -34,12 +37,16 @@ const bootstrap = async (app, express)=>{
 
     app.use('/googleAuth', googleAuthRouter);
 
+    app.use("/graphql",createHandler({schema: schema}))
+
 
     app.use("/auth",authRouter)
     app.use("/user",userRouter)
     app.use("/company",companyRouter)
     app.use("/job",jobRouter)
     app.use("/chat",chatRouter)
+    app.use("/admin",adminRouter)
+
 
 
     app.all("*",notFoundHandler)
