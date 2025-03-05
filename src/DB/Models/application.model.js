@@ -1,15 +1,16 @@
-import mongoose, { Schema, Types } from 'mongoose';
+import mongoose, { model, Schema, Types } from "mongoose";
 
 export const status = {
-    pending: 'pending',
-    accepted: 'accepted',
-    viewed: 'viewed',
-    in_consideration: 'in consideration',
-    rejected: 'rejected',
-}
+  pending: 'pending',
+  accepted: 'accepted',
+  viewed: 'viewed',
+  in_consideration: 'in consideration',
+  rejected: 'rejected',
+};
+
 const applicationSchema = new Schema({
   jobId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Types.ObjectId,
     ref: 'JobOpportunity',
     required: true,
   },
@@ -30,10 +31,11 @@ const applicationSchema = new Schema({
   },
   status: {
     type: String,
-    enum: [Object.values(status)],
+    enum: Object.values(status), // Corrected this line
     default: 'pending',
   },
 }, { timestamps: true });
+
 
 // Cascade delete applications if a related job is deleted
 applicationSchema.pre('findOneAndDelete', async function (next) {

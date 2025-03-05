@@ -1,6 +1,9 @@
 import { JobOpportunityModel } from "../../DB/Models/jobOpportunity.model.js"
 import * as dbService from "../../DB/dbService.js"
 import { CompanyModel } from "../../DB/Models/company.model.js"
+import { ApplicationModel } from "../../DB/Models/application.model.js";
+import nodemailer from "nodemailer";
+
 export const createJob = async (req, res, next) => {
     try {
         const { companyId } = req.params;
@@ -14,7 +17,6 @@ export const createJob = async (req, res, next) => {
             softSkills
         } = req.body;
 
-        // Find the company and populate HRs to get their ObjectIds
         const company = await dbService.findById({
             model: CompanyModel,
             id: companyId,
@@ -211,3 +213,137 @@ export const getAllJobs = async (req, res, next) => {
     }
 };
 
+/*
+export const getJobApplications = async (req, res, next) => {
+    try {
+        const { jobId } = req.params;
+        const { page = 1, limit = 10, sort = 'createdAt' } = req.query;
+
+        // Ensure page and limit are numbers
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const skip = (pageNumber - 1) * limitNumber;
+
+        // Find the job and populate its company details
+        const job = await dbService.findOne({
+            model: JobOpportunityModel,
+            filter: { _id: jobId },
+            populate: [{ path: 'company', select: 'createdBy HRs' }],
+        });
+
+        if (!job) {
+            return next(new Error("Job not found", { cause: 404 }));
+        }
+
+        // Authorization: check if the user is a company owner or HR
+        const { createdBy, HRs } = job.company;
+        const isOwner = createdBy?.toString() === req.user._id?.toString();
+        const isHR = HRs?.some(hrId => hrId.toString() === req.user._id?.toString());
+
+        if (!isOwner && !isHR) {
+            return next(new Error("You are not authorized to view applications for this job", { cause: 403 }));
+        }
+
+        // Get applications with user data populated
+        const applications = await ApplicationModel.find({ jobId })
+            .populate('userId', 'userName email profilePic')
+            .sort({ [sort]: -1 })
+            .skip(skip)
+            .limit(limitNumber);
+
+        // Count total applications for pagination
+        const totalItems = await ApplicationModel.countDocuments({ jobId });
+
+        const pagination = {
+            totalItems,
+            currentPage: pageNumber,
+            totalPages: Math.ceil(totalItems / limitNumber),
+            itemsPerPage: applications.length,
+        };
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                applications,
+                pagination,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+*/
+
+/*
+export const updateApplicationStatus = async (req, res, next) => {
+    try {
+        const { applicationId } = req.params;
+        const { status } = req.body; // 'accepted' or 'rejected'
+
+        if (!['accepted', 'rejected'].includes(status)) {
+            return next(new Error("Invalid status. Must be 'accepted' or 'rejected'.", { cause: 400 }));
+        }
+
+        // Find the application with job and user details
+        const application = await dbService.findOne({
+            model: ApplicationModel,
+            filter: { _id: applicationId },
+            populate: [{ path: 'jobId', populate: { path: 'company' } }, { path: 'userId' }]
+        });
+
+        if (!application) {
+            return next(new Error("Application not found", { cause: 404 }));
+        }
+
+        const { jobId, userId } = application;
+        const company = jobId.company;
+
+        // Ensure only company owner or HR can update the status
+        const isOwner = company.createdBy.toString() === req.user._id.toString();
+        const isHR = company.HRs.some(hrId => hrId.toString() === req.user._id.toString());
+
+        if (!isOwner && !isHR) {
+            return next(new Error("You are not authorized to update this application's status", { cause: 403 }));
+        }
+
+        // Update application status
+        application.status = status;
+        await application.save();
+
+        // Send email notification to applicant
+        const subject = status === 'accepted' ? "Job Application Accepted" : "Job Application Rejected";
+        const message = status === 'accepted'
+            ? `Congratulations! Your application for the position of ${jobId.jobTitle} has been accepted.`
+            : `We regret to inform you that your application for the position of ${jobId.jobTitle} has been rejected.`;
+
+        await sendEmail(userId.email, subject, message);
+
+        return res.status(200).json({
+            success: true,
+            message: `Application ${status} successfully.`,
+            data: { application }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+const sendEmail = async (to, subject, text) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to,
+        subject,
+        text
+    });
+};
+
+*/

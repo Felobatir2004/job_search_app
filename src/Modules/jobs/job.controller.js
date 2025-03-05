@@ -43,4 +43,10 @@ router.get(
     allowTo(["User"]), 
     asyncHandler(jobService.getAllJobs)
 )
+router.get(
+    "/getJobApplication/:jobId",
+    authentication(),
+    allowTo(["User"]), 
+    asyncHandler(jobService.getJobApplications)
+)
 export default router

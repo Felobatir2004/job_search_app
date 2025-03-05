@@ -1,33 +1,23 @@
-import mongoose, { Schema, Types } from 'mongoose';
+import mongoose, { model, Schema, Types } from 'mongoose';
+
+const messageSchema = new Schema({
+  sender:{type:Types.ObjectId,ref:"User",required:true},
+  receiver:{type:Types.ObjectId,ref:"User",required:true},
+  message:{type:String,required:true},
+
+},{timestamps:true})
 
 const chatSchema = new Schema({
-  senderId: {
-    type: Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-  receiverId: {
-    type: Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-  messages: [
-    {
-      message: {
-        type: String,
-        required: true,
-      },
-      senderId: {
-        type: Types.ObjectId,
-        ref: 'User',
-        required: true,
-      },
-      timestamp: {
-        type: Date,
-        default: Date.now,
-      },
+  users:{
+    type:[{type:Types.ObjectId , ref:"User"}],
+    validate:{
+        validator:(value)=>{
+            return value.length === 2
+        },
+        message:"Chat can only have 2 users"
     },
-  ],
+  },
+  messages: [messageSchema],
 }, { timestamps: true });
 
 chatSchema.pre('findOneAndDelete', async function (next) {
