@@ -1,12 +1,11 @@
-import ChatModel from "../../../DB/Models/chat.model.js";
+import {ChatModel} from "../../../DB/Models/chat.model.js";
 import { UserModel } from "../../../DB/Models/user.model.js";
 import * as dbService from "../../../DB/dbService.js"
 export const sendMessage = function (socket,io) {
-    return async ({message ,from, to})=>{
+    return async ({content ,from, to})=>{
  
         const friendId = to
         const companyId = from
-        const {message} = req.body
         const friend = await dbService.findOne({model:UserModel , filter:{_id:friendId }})
         if(!friend) 
             throw new Error("friend Not Found")
@@ -34,11 +33,11 @@ export const sendMessage = function (socket,io) {
                 model:ChatModel , 
                 data:{
                     users:[req.user._id , friendId],
-                    messages:[{sender:socket.user._id ,receiver:friendId, message}]
+                    messages:[{sender:socket.user._id ,receiver:friendId, content}]
                 }
             })
         }else{
-            chat.messages.push({sender:socket.user._id,receiver:friendId , message})
+            chat.messages.push({sender:socket.user._id,receiver:friendId , content})
             await chat.save()
         }
     
