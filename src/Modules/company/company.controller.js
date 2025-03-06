@@ -19,7 +19,6 @@ router.patch(
     "/update/:companyId",
     authentication(),
     allowTo(["User"]),
-    validation(companyValidation.updateCompanySchema),
     asyncHandler(companyService.updateCompany)
 )
 router.patch(

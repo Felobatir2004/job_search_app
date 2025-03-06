@@ -4,6 +4,7 @@ import { emailEmitter } from "../../utils/email/email.event.js"
 import { otp } from "../../utils/email/email.event.js"
 import { compareHash, hash } from "../../utils/hashing/hash.js"
 import { generateToken } from "../../utils/token/token.js"
+import {OAuth2Client} from 'google-auth-library';
 import {decodedToken, tokenTypes} from "../../middlewares/auth.middleware.js"
 export const signUp = async  (req,res,next)=>{
     const {firstName, lastName, email , password  , gender , mobileNumber,role}= req.body
@@ -102,6 +103,128 @@ export const signIn = async (req,res,next)=>{
     })
 }
 
+
+
+export const signUpWithGoogle = async (req, res, next) => {
+    const { idToken } = req.body;
+    const client = new OAuth2Client();
+
+    const verify = async () => {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.CLIENT_ID,
+      });
+      return ticket.getPayload();
+    };
+
+    const { name, email, picture, email_verified } = await verify();
+
+    if (!email_verified) {
+      return next(new Error('Email not verified', { cause: 401 }));
+    }
+
+    let user = await dbService.findOne({ model: UserModel, filter: { email, isDeleted: false } });
+
+    if (user && user.providers === providersTypes.System) {
+      return next(new Error('User already exists with a different sign-up method', { cause: 409 }));
+    }
+
+    if (!user) {
+      user = await dbService.create({
+        model: UserModel,
+        data: {
+          userName: name,
+          email,
+          profilePic: { secure_url: picture }, 
+          confirmEmail: email_verified,
+          providers: providersTypes.Google,
+          role: roleType.User, 
+        },
+      });
+    }
+
+    const access_token = generateToken({
+      payload: { id: user._id },
+      signature: process.env.USER_ACCESS_TOKEN,
+      options: { expiresIn: process.env.ACCESS_TOKEN_EXPIRESS },
+    });
+
+    const refresh_token = generateToken({
+      payload: { id: user._id },
+      signature: process.env.USER_ACCESS_TOKEN,
+      options: { expiresIn: process.env.REFRESH_TOKEN_EXPIRESS },
+    });
+
+    return res.status(200).json({
+      success: true,
+      tokens: {
+        access_token,
+        refresh_token,
+      },
+    });
+
+};
+
+export const loginWithGoogle = async (req,res,next)=>{
+
+    const {idToken} = req.body;
+    const client = new OAuth2Client();
+    async function verify() {
+    const ticket = await client.verifyIdToken({
+        idToken: idToken,
+        audience: process.env.CLIENT_ID, 
+    });
+    const payload = ticket.getPayload();
+    return payload;
+    }
+    const {name , email, picture, email_verified}= await verify();
+
+    if(!email_verified)
+        return next(new Error("email not verified",{cause: 401}))
+    let user = await dbService.findOne({model:UserModel , filter: {email,isDeleted:false}})
+
+    if(user?.providers === providersTypes.System)
+        return next(new Error("User Already Exist",{cause:409}))
+    if(!user)
+    {
+        user = await dbService.create({
+            model: UserModel,
+            data:{
+                userName: name,
+                email,
+                image: picture,
+                confirmEmail: email_verified,
+                providers: providersTypes.Google
+            }
+        })
+    };
+    
+    const access_token = generateToken({
+        payload:{id:user._id},
+        signature: user.role === roleType.User
+          ? process.env.USER_ACCESS_TOKEN 
+          : process.env.ADMIN_ACCESS_TOKEN,
+        options:{expiresIn: process.env.ACCESS_TOKEN_EXPIRESS}
+    })
+
+    const refresh_token = generateToken({
+        payload:{id:user._id},
+        signature: user.role === roleType.User
+          ? process.env.USER_ACCESS_TOKEN 
+          : process.env.ADMIN_ACCESS_TOKEN,
+        options:{expiresIn: process.env.REFRESH_TOKEN_EXPIRESS}
+
+    })
+    return res.status(200).json({
+        success:true,
+        tokens: {
+            access_token,
+            refresh_token, 
+        }
+    })
+    
+}
+
 export const forget_password = async (req,res,next)=>{
 
     const { email } =req.body
@@ -159,46 +282,33 @@ export const reset_password = async (req,res,next)=>{
     })
 }
 
-export const refresh_token = async (req, res, next) => {
+export const refresh_token = async (req,res,next)=>{
+    const {authorization} = req.headers;
+    console.log(authorization);
     
-        const { authorization } = req.headers;
-
-        if (!authorization) {
-            return next(new Error("Authorization header is missing", { cause: 401 }));
-        }
-
-        const user = await decodedToken({
-            authorization,
-            tokenType: tokenTypes.refresh,
-            next
-        });
-        
-
-        if (!user || !user._id) {
-            return next(new Error("Invalid or expired refresh token", { cause: 401 }));
-        }
-
-        const access_token = generateToken({
-            payload: { id: user._id },
-            signature: user.role === roleType.User
-                ? process.env.USER_ACCESS_TOKEN
-                : process.env.ADMIN_ACCESS_TOKEN,
-        });
-
-        const refresh_token = generateToken({
-            payload: { id: user._id },
-            signature: user.role === roleType.User
-                ? process.env.USER_REFRESH_TOKEN
-                : process.env.ADMIN_REFRESH_TOKEN,
-        });
-
-        return res.status(200).json({
-            success: true,
-            tokens: {
-                access_token,
-                refresh_token,
-            }
-        });
-
-
-};
+    const user = await decodedToken({
+        authorization,
+        tokenType:tokenTypes.refresh,
+        next
+    })
+    const access_token = generateToken({
+        payload:{id:user._id},
+        signature: user.role === roleType.User
+            ? process.env.USER_ACCESS_TOKEN 
+            : process.env.ADMIN_ACCESS_TOKEN,
+    })
+    
+    const refresh_token = generateToken({
+        payload:{id:user._id},
+        signature: user.role === roleType.User
+            ? process.env.USER_REFRESH_TOKEN 
+            : process.env.ADMIN_REFRESH_TOKEN,
+    })
+    return res.status(200).json({
+        success: true,
+         tokens: {
+            access_token,
+            refresh_token, 
+         }
+    })
+}

@@ -17,3 +17,17 @@ export const deleteJobSchema = joi
     jobId:generalField.id.required(),
 })
 
+export const getAllApplicationsForJobSchema = joi
+.object({
+    jobId:generalField.id.required(),
+})
+
+export const applyToJobSchema = joi
+.object({
+    jobId:generalField.id.required(),
+})
+export const updateApplicationSchema = joi  
+.object({
+    applicationId:generalField.id.required(),
+    newStatus:joi.string().valid('accepted', 'rejected').required()
+})

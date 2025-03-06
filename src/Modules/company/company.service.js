@@ -21,33 +21,31 @@ export const addCompany = async (req, res, next) => {
 
 };
 
-export const updateCompany = async (req, res, next) => 
-    {
-    
+export const updateCompany = async (req, res, next) => {
         const { companyId } = req.params;
-        const userId = req.user._id; 
-        const updateData = req.body;
+        const userId = req.user._id;
+        let updateData = { ...req.body }; 
 
+        delete updateData.legalAttachment;
+        delete updateData.companyId; 
 
-        if (updateData.legalAttachment) {
-            delete updateData.legalAttachment;
+        const { companyName, companyEmail } = updateData;
+
+        if (companyName) {
+            const checkCompanyName = await dbService.findOne({ model: CompanyModel, filter: { companyName } });
+            if (checkCompanyName && checkCompanyName._id.toString() !== companyId) {
+                return next(new Error("Company name already exists", { cause: 409 }));
+            }
         }
-        const companyName = updateData.companyName;
-        const companyEmail = updateData.companyEmail
 
-        const checkCompanyName = await dbService.findOne({model: CompanyModel , filter: {companyName}})
+        if (companyEmail) {
+            const checkCompanyEmail = await dbService.findOne({ model: CompanyModel, filter: { companyEmail } });
+            if (checkCompanyEmail && checkCompanyEmail._id.toString() !== companyId) {
+                return next(new Error("Company email already exists", { cause: 409 }));
+            }
+        }
 
-        if(checkCompanyName) return next(new Error("Company name already exist", {cause: 409}))
-    
-        const checkCompanyEmail = await dbService.findOne({model: CompanyModel , filter: {companyEmail}})
-    
-        if(checkCompanyEmail) return next(new Error("Company email already exist", {cause: 409}))
-    
-    
-        const company = await dbService.findById({
-            model: CompanyModel,
-            id: companyId
-        });
+        const company = await dbService.findById({ model: CompanyModel, id: companyId });
 
         if (!company) {
             return next(new Error("Company not found", { cause: 404 }));
@@ -65,7 +63,9 @@ export const updateCompany = async (req, res, next) =>
             message: "Company updated successfully",
             data: company
         });
-}
+
+};
+
 
 export const softDelete = async (req, res, next) => {
     const {companyId} = req.params;

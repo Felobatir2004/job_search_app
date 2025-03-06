@@ -10,16 +10,6 @@ export const createCompanySchema = joi
     companyEmail:generalField.companyEmail.required(),
     HRs:generalField.HRs
 }).required()
-export const updateCompanySchema = joi
-.object({
-    companyName:generalField.companyName,
-    description:generalField.description,
-    industry:generalField.industry,
-    address:generalField.address,
-    numberOfEmployees:generalField.numberOfEmployees,
-    companyEmail:generalField.companyEmail,
-    HRs:generalField.HRs
-})
 export const softDeleteSchema = joi
 .object({
     companyId: generalField.id.required(),

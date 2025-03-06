@@ -103,14 +103,5 @@ jobOpportunitySchema.pre('findOneAndUpdate', function (next) {
         itemsPerPage: data.length
     };
 };
-/*
-jobOpportunitySchema.virtual("applications", {
-    ref: "Application",
-    localField: "_id",
-    foreignField: "job",
-});
-jobOpportunitySchema.set("toObject", { virtuals: true });
-jobOpportunitySchema.set("toJSON", { virtuals: true });
 
-*/
 export const JobOpportunityModel = mongoose.models.JobOpportunity || model("JobOpportunity",jobOpportunitySchema)

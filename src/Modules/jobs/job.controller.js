@@ -46,7 +46,24 @@ router.get(
 router.get(
     "/getJobApplication/:jobId",
     authentication(),
+    allowTo(["User","Admin"]), 
+    validation(jobValidation.getAllApplicationsForJobSchema),
+    asyncHandler(jobService.getAllApplicationsForJob)
+)
+router.post(
+    "/applyToJob/:jobId",
+    authentication(),
     allowTo(["User"]), 
-    asyncHandler(jobService.getJobApplications)
+    uploadCloud().single("application"),
+    validation(jobValidation.applyToJobSchema),
+    asyncHandler(jobService.applyToJob),
+)
+
+router.patch(
+    "/acceptAndRejectApplication/:applicationId",
+    authentication(),
+    allowTo(["User"]), 
+    validation(jobValidation.updateApplicationSchema),
+    asyncHandler(jobService.updateApplicationStatus),
 )
 export default router

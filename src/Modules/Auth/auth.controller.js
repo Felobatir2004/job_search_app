@@ -22,7 +22,14 @@ router.post(
     validation(authValidation.signInSchema),
     asyncHandler(authService.signIn)
 )
-
+router.post(
+    "/signUpWithGmail",
+    asyncHandler(authService.signUpWithGoogle)
+)
+router.post(
+    "/loginWithGmail",
+    asyncHandler(authService.loginWithgoogle)
+)
 router.patch(
     "/forget_password",
     validation(authValidation.forgetPasswordSchema),

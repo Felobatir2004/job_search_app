@@ -9,12 +9,22 @@ import deleteExpiredOTPs from "./utils/cronJobs/cronJobs.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error handling/asyncHandler.js"
 import cors from "cors";
 import morgan from "morgan"
-import session from 'express-session';
-import passport from 'passport'
-import"./Modules/Auth/googleAuth.js"
-import googleAuthRouter from "./Modules/Auth/googleAuth.router.js"
+import {rateLimit} from "express-rate-limit"
 import { createHandler } from "graphql-http/lib/use/express"
 import {schema} from "./Modules/app.graph.js"
+
+
+const limiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    limit:7,
+    message:"Too many requests from this IP, please try again after 5 minutes",
+    statusCode:429,
+
+    handler:  (req, res, next, options) => {
+        return next(new Error(options.message, { cause: options.statusCode }))
+    },
+
+})
 const bootstrap = async (app, express)=>{
 
     await connectDB()
@@ -28,14 +38,10 @@ const bootstrap = async (app, express)=>{
 
     app.use("/uploads", express.static("uploads"));
     app.use(cors())
-
+    app.use(limiter);
     app.get("/",(req,res)=> res.send("Hello world"))
 
-    app.use(session({ secret: 'yourSecretKey', resave: false, saveUninitialized: true }));
-    app.use(passport.initialize());
-    app.use(passport.session());
 
-    app.use('/googleAuth', googleAuthRouter);
 
     app.use("/graphql",createHandler({schema: schema}))
 

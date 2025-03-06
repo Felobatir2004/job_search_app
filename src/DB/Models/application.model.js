@@ -31,13 +31,12 @@ const applicationSchema = new Schema({
   },
   status: {
     type: String,
-    enum: Object.values(status), // Corrected this line
+    enum: Object.values(status),
     default: 'pending',
   },
 }, { timestamps: true });
 
 
-// Cascade delete applications if a related job is deleted
 applicationSchema.pre('findOneAndDelete', async function (next) {
   const jobId = this.getQuery().jobId;
   console.log(`Deleting applications related to job: ${jobId}`);

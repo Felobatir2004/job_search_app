@@ -10,13 +10,13 @@ export const tokenTypes = {
 
 export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.access, next }) => {
     if (!authorization) {
-        return next(new Error("Invalid Token: Authorization header missing", { cause: 401 }));
+        throw new Error("Authorization header missing");
     }
 
     const [bearer, token] = authorization.split(" ");
 
     if (!bearer || !token) {
-        return next(new Error("Invalid Token: Bearer or token missing", { cause: 401 }));
+        throw new Error("Bearer or token missing");
     }
 
     let ACCESS_SIGNATURE, REFRESH_SIGNATURE;
@@ -31,48 +31,62 @@ export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.
             REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN;
             break;
         default:
-            return next(new Error("Invalid Token: Unknown bearer type", { cause: 401 }));
+            throw new Error("Unknown bearer type");
     }
 
     const signature = tokenType === tokenTypes.access ? ACCESS_SIGNATURE : REFRESH_SIGNATURE;
 
+    console.log("Bearer:", bearer);
+    console.log("Token type:", tokenType);
+    console.log("Signature used:", signature);
+
+    if (!signature) {
+        throw new Error("JWT secret is missing");
+    }
+
     let decoded;
     try {
         decoded = verifyToken({ token, signature });
+        console.log("Decoded token:", decoded);
     } catch (err) {
-        return next(new Error("Invalid Token: JWT verification failed", { cause: 401 }));
+        console.error("JWT verification failed:", err.message);
+        throw new Error(`Invalid or expired token: ${err.message}`);
+    }
+
+    if (!decoded?.id) {
+        throw new Error("Invalid token payload");
     }
 
     const user = await dbService.findOne({ model: UserModel, filter: { _id: decoded.id } });
 
     if (!user) {
-        return next(new Error("User Not Found", { cause: 404 }));
+        throw new Error("User not found");
     }
 
     if (user.changeCredentials?.getTime() >= decoded.iat * 1000) {
-        return next(new Error("Invalid Token: Token has been invalidated", { cause: 400 }));
+        throw new Error("Token has been invalidated");
     }
 
     return user;
 };
 
+
 export const authentication = () => {
     return asyncHandler(async (req, res, next) => {
-        const { authorization } = req.headers;
+            const { authorization } = req.headers;
 
-        const user = await decodedToken({
-            authorization,
-            tokenType: tokenTypes.access,
-            next,
-        });
+            const user = await decodedToken({
+                authorization,
+                tokenType: tokenTypes.access,
+            });
 
-        if (!user) {
-            return next(new Error("Unauthorized", { cause: 401 }));
-        }
+            if (!user) {
+                throw new Error("Unauthorized");
+            }
 
-        req.user = user;
+            req.user = user;
+            next();
 
-        return next();
     });
 };
 

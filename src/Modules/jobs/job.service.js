@@ -3,7 +3,8 @@ import * as dbService from "../../DB/dbService.js"
 import { CompanyModel } from "../../DB/Models/company.model.js"
 import { ApplicationModel } from "../../DB/Models/application.model.js";
 import nodemailer from "nodemailer";
-
+import {sendEmail} from "../../utils/email/applicationEmail.js"
+import cloudinary from "../../utils/fileUploading/cloudinaryConfig.js";
 export const createJob = async (req, res, next) => {
     try {
         const { companyId } = req.params;
@@ -27,12 +28,17 @@ export const createJob = async (req, res, next) => {
             return next(new Error("Company not found", { cause: 404 }));
         }
 
+
         const isOwner = company.createdBy?.toString() === req.user._id?.toString();
         const isHR = company.HRs.some(hr => hr._id?.toString() === req.user._id?.toString());
 
         if (!isOwner && !isHR) {
             return next(new Error("You are not authorized to add jobs for this company", { cause: 403 }));
         }
+        if(company.isBanned == true) 
+            return next(new Error("Company is banned", { cause: 403 }));
+        if(company.approvedByAdmin == false) 
+            return next(new Error("Company is not approved by admin", { cause: 403 }));
 
         const job = await dbService.create({
             model: JobOpportunityModel,
@@ -97,7 +103,7 @@ export const deleteJob = async (req, res, next) => {
         const job = await dbService.findById({
             model: JobOpportunityModel,
             id: jobId,
-            populate: [{ path: 'company', select: 'HRs' }] // Get the HRs from the related company
+            populate: [{ path: 'company', select: 'HRs' }] 
         });
 
         if (!job) {
@@ -171,7 +177,6 @@ export const getJobsForCompany = async (req, res, next) => {
 };
 
 export const getAllJobs = async (req, res, next) => {
-    try {
         const { page = 1, limit = 10, sort = "createdAt", order = "desc" } = req.query;
         const filters = {};
 
@@ -207,143 +212,156 @@ export const getAllJobs = async (req, res, next) => {
                 }
             }
         });
+};
 
-    } catch (error) {
-        next(error);
+
+ export const getAllApplicationsForJob = async (req, res) => {
+      const { jobId } = req.params;
+      const { page = 1, limit = 10, sort = 'createdAt' } = req.query;
+      const userId = req.user._id;
+  
+      const job = await JobOpportunityModel.findById(jobId).populate('company');
+      if (!job) {
+        return res.status(404).json({ message: 'Job not found.' });
+      }
+  
+      const company = await CompanyModel.findById(job.company._id);
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found.' });
+      }
+  
+      const isAuthorized = company.createdBy.equals(userId) || company.HRs.some(hr => hr._id?.toString() === req.user._id?.toString());
+      if (!isAuthorized) {
+        return res.status(403).json({ message: 'Access denied. Only company owners or HR can view applications.' });
+      }
+  
+      const skip = (page - 1) * limit;
+  
+      const applications = await ApplicationModel.find({ jobId })
+        .populate({
+          path: 'userId',
+          select: 'firstName lastName userName email profilePic',
+        })
+        .sort({ [sort]: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+  
+      const totalCount = await ApplicationModel.countDocuments({ jobId });
+  
+      res.status(200).json({
+        message: 'Applications fetched successfully.',
+        data: {
+          applications,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / limit),
+            totalCount,
+          },
+        },
+      });
+  };
+  
+
+ export const applyToJob = async (req, res) => {
+     const { jobId } = req.params;
+     const userId = req.user?._id; 
+     const userRole = req.user?.role;
+
+ 
+     if (!userId || !userRole) {
+       return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+     }
+ 
+     if (userRole !== 'User') {
+       return res.status(403).json({ message: 'Only users can apply for jobs.' });
+     }
+ 
+     const job = await JobOpportunityModel.findById(jobId);
+     if (!job) {
+       return res.status(404).json({ message: 'Job not found.' });
+     }
+ 
+     const existingApplication = await ApplicationModel.findOne({ jobId, userId });
+     if (existingApplication) {
+       return res.status(400).json({ message: 'You have already applied for this job.' });
+     }
+ 
+     if (!req.file || !req.file.path) {
+       return res.status(400).json({ message: 'Please upload your CV.' });
+     }
+ 
+     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+       folder: `jobs/Applications/${jobId}`, 
+     });
+ 
+     if (!cloudinaryResponse.secure_url || !cloudinaryResponse.public_id) {
+       throw new Error('Failed to upload CV.');
+     }
+ 
+     const application = await ApplicationModel.create({
+       jobId,
+       userId,
+       userCV: {
+         secure_url: cloudinaryResponse.secure_url,
+         public_id: cloudinaryResponse.public_id,
+       },
+       status: 'pending',
+     });
+ 
+     console.log('Application created:', application);
+ 
+     return res.status(201).json({ message: 'Job application submitted successfully!', application });
+
+ };
+ 
+
+
+
+export const updateApplicationStatus = async (req, res) => {
+    const { applicationId } = req.params;
+    const { newStatus } = req.body; // 'accepted' or 'rejected'
+    const userId = req.user._id; // Authenticated user's ID
+
+    // Validate newStatus
+    if (!['accepted', 'rejected'].includes(newStatus)) {
+      return res.status(400).json({ message: "Invalid status. Use 'accepted' or 'rejected'." });
     }
-};
 
-/*
-export const getJobApplications = async (req, res, next) => {
-    try {
-        const { jobId } = req.params;
-        const { page = 1, limit = 10, sort = 'createdAt' } = req.query;
+    // Find application and populate job -> company
+    const application = await ApplicationModel.findById(applicationId)
+      .populate({
+        path: 'jobId',
+        populate: {
+          path: 'company',
+          select: 'createdBy HRs',
+        },
+      })
+      .populate('userId', ' firstName lastName email userName');
 
-        // Ensure page and limit are numbers
-        const pageNumber = parseInt(page);
-        const limitNumber = parseInt(limit);
-        const skip = (pageNumber - 1) * limitNumber;
-
-        // Find the job and populate its company details
-        const job = await dbService.findOne({
-            model: JobOpportunityModel,
-            filter: { _id: jobId },
-            populate: [{ path: 'company', select: 'createdBy HRs' }],
-        });
-
-        if (!job) {
-            return next(new Error("Job not found", { cause: 404 }));
-        }
-
-        // Authorization: check if the user is a company owner or HR
-        const { createdBy, HRs } = job.company;
-        const isOwner = createdBy?.toString() === req.user._id?.toString();
-        const isHR = HRs?.some(hrId => hrId.toString() === req.user._id?.toString());
-
-        if (!isOwner && !isHR) {
-            return next(new Error("You are not authorized to view applications for this job", { cause: 403 }));
-        }
-
-        // Get applications with user data populated
-        const applications = await ApplicationModel.find({ jobId })
-            .populate('userId', 'userName email profilePic')
-            .sort({ [sort]: -1 })
-            .skip(skip)
-            .limit(limitNumber);
-
-        // Count total applications for pagination
-        const totalItems = await ApplicationModel.countDocuments({ jobId });
-
-        const pagination = {
-            totalItems,
-            currentPage: pageNumber,
-            totalPages: Math.ceil(totalItems / limitNumber),
-            itemsPerPage: applications.length,
-        };
-
-        return res.status(200).json({
-            success: true,
-            data: {
-                applications,
-                pagination,
-            },
-        });
-    } catch (error) {
-        next(error);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found.' });
     }
-};
-*/
 
-/*
-export const updateApplicationStatus = async (req, res, next) => {
-    try {
-        const { applicationId } = req.params;
-        const { status } = req.body; // 'accepted' or 'rejected'
+    const company = application.jobId.company;
 
-        if (!['accepted', 'rejected'].includes(status)) {
-            return next(new Error("Invalid status. Must be 'accepted' or 'rejected'.", { cause: 400 }));
-        }
-
-        // Find the application with job and user details
-        const application = await dbService.findOne({
-            model: ApplicationModel,
-            filter: { _id: applicationId },
-            populate: [{ path: 'jobId', populate: { path: 'company' } }, { path: 'userId' }]
-        });
-
-        if (!application) {
-            return next(new Error("Application not found", { cause: 404 }));
-        }
-
-        const { jobId, userId } = application;
-        const company = jobId.company;
-
-        // Ensure only company owner or HR can update the status
-        const isOwner = company.createdBy.toString() === req.user._id.toString();
-        const isHR = company.HRs.some(hrId => hrId.toString() === req.user._id.toString());
-
-        if (!isOwner && !isHR) {
-            return next(new Error("You are not authorized to update this application's status", { cause: 403 }));
-        }
-
-        // Update application status
-        application.status = status;
-        await application.save();
-
-        // Send email notification to applicant
-        const subject = status === 'accepted' ? "Job Application Accepted" : "Job Application Rejected";
-        const message = status === 'accepted'
-            ? `Congratulations! Your application for the position of ${jobId.jobTitle} has been accepted.`
-            : `We regret to inform you that your application for the position of ${jobId.jobTitle} has been rejected.`;
-
-        await sendEmail(userId.email, subject, message);
-
-        return res.status(200).json({
-            success: true,
-            message: `Application ${status} successfully.`,
-            data: { application }
-        });
-
-    } catch (error) {
-        next(error);
+    // Ensure the user is authorized (company owner or HR)
+    const isAuthorized = company.createdBy.equals(userId) || company.HRs.some(hrId => hrId.equals(userId));
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Access denied. Only company owners or HRs can update application status.' });
     }
+
+    // Update application status
+    application.status = newStatus;
+    await application.save();
+
+    // Send email to applicant
+    const subject = newStatus === 'accepted' ? 'Congratulations! Your Job Application has been Accepted' : 'Job Application Update';
+    const message = newStatus === 'accepted'
+      ? `Dear ${application.userId.userName},\n\nCongratulations! We are pleased to inform you that your application for the position has been accepted.`
+      : `Dear ${application.userId.userName},\n\nThank you for your interest in the position. Unfortunately, we have decided to move forward with other candidates at this time.`;
+
+    await sendEmail(application.userId.email, subject, message);
+
+    res.status(200).json({ message: `Application has been ${newStatus}.`, application });
+
 };
-
-const sendEmail = async (to, subject, text) => {
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
-
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to,
-        subject,
-        text
-    });
-};
-
-*/
