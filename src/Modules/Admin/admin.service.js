@@ -1,5 +1,5 @@
 import { CompanyModel } from "../../DB/Models/company.model.js";
-import { UserModel } from "../../DB/models/user.model.js";
+import { UserModel } from "../../DB/Models/user.model.js";
 
 
 export const banOrUnbanUser = async (req, res, next) => {
