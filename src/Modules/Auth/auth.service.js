@@ -282,33 +282,43 @@ export const reset_password = async (req,res,next)=>{
     })
 }
 
-export const refresh_token = async (req,res,next)=>{
-    const {authorization} = req.headers;
-    console.log(authorization);
-    
-    const user = await decodedToken({
-        authorization,
-        tokenType:tokenTypes.refresh,
-        next
-    })
-    const access_token = generateToken({
-        payload:{id:user._id},
-        signature: user.role === roleType.User
-            ? process.env.USER_ACCESS_TOKEN 
-            : process.env.ADMIN_ACCESS_TOKEN,
-    })
-    
-    const refresh_token = generateToken({
-        payload:{id:user._id},
-        signature: user.role === roleType.User
-            ? process.env.USER_REFRESH_TOKEN 
-            : process.env.ADMIN_REFRESH_TOKEN,
-    })
-    return res.status(200).json({
-        success: true,
-         tokens: {
-            access_token,
-            refresh_token, 
-         }
-    })
-}
+export const refresh_token = async (req, res, next) => {
+    try {
+        const { authorization } = req.headers;
+        console.log(authorization);
+        if (!authorization) {
+            return res.status(401).json({ success: false, message: "Authorization header missing" });
+        }
+
+        const user = await decodedToken({
+            authorization,
+            tokenType: tokenTypes.refresh,
+        });
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Invalid or expired refresh token" });
+        }
+
+        const access_token = generateToken({
+            payload: { id: user._id },
+            signature: user.role === roleType.User
+                ? process.env.USER_ACCESS_TOKEN
+                : process.env.ADMIN_ACCESS_TOKEN,
+        });
+
+        const refresh_token = generateToken({
+            payload: { id: user._id },
+            signature: user.role === roleType.User
+                ? process.env.USER_REFRESH_TOKEN
+                : process.env.ADMIN_REFRESH_TOKEN,
+        });
+
+        return res.status(200).json({
+            success: true,
+            tokens: { access_token, refresh_token }
+        });
+
+    } catch (err) {
+        next(err); // Pass errors to Express error handler
+    }
+};
