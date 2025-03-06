@@ -8,32 +8,48 @@ export const tokenTypes = {
 }
 
 
-export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.access }) => {
-    if (!authorization.startsWith("Bearer ")) {
-        throw new Error("Invalid authorization format");
+export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.access, next }) => {
+    if (!authorization) {
+        throw new Error("Authorization header missing");
     }
 
-    const token = authorization.split(" ")[1];
-    if (!token) {
-        throw new Error("Token is missing");
+    const [bearer, token] = authorization.split(" ");
+
+    if (!bearer || !token) {
+        throw new Error("Bearer or token missing");
     }
-    
 
-    const ACCESS_SIGNATURE = process.env.USER_ACCESS_TOKEN || process.env.ADMIN_ACCESS_TOKEN;
-    const REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN || process.env.ADMIN_REFRESH_TOKEN;
+    let ACCESS_SIGNATURE, REFRESH_SIGNATURE;
 
-    if (!ACCESS_SIGNATURE || !REFRESH_SIGNATURE) {
-        throw new Error("JWT secret keys are missing");
+    switch (bearer) {
+        case "Admin":
+            ACCESS_SIGNATURE = process.env.ADMIN_ACCESS_TOKEN;
+            REFRESH_SIGNATURE = process.env.ADMIN_REFRESH_TOKEN;
+            break;
+        case "User":
+            ACCESS_SIGNATURE = process.env.USER_ACCESS_TOKEN;
+            REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN;
+            break;
+        default:
+            throw new Error("Unknown bearer type");
     }
 
     const signature = tokenType === tokenTypes.access ? ACCESS_SIGNATURE : REFRESH_SIGNATURE;
+
+    console.log("Bearer:", bearer);
+    console.log("Token type:", tokenType);
+    console.log("Signature used:", signature);
+
+    if (!signature) {
+        throw new Error("JWT secret is missing");
+    }
 
     let decoded;
     try {
         decoded = verifyToken({ token, signature });
     } catch (err) {
-        console.error("JWT verification error:", err.message);
-        throw new Error("Invalid or expired token");
+        console.error("JWT verification failed:", err.message);
+        throw new Error(`Invalid or expired token: ${err.message}`);
     }
 
     if (!decoded?.id) {
@@ -56,26 +72,22 @@ export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.
 
 export const authentication = () => {
     return asyncHandler(async (req, res, next) => {
-        const { authorization } = req.headers;
+            const { authorization } = req.headers;
 
-        if (!authorization) {
-            return res.status(401).json({ success: false, message: "Authorization header missing" });
-        }
+            const user = await decodedToken({
+                authorization,
+                tokenType: tokenTypes.access,
+            });
 
-        const user = await decodedToken({
-            authorization,
-            tokenType: tokenTypes.access,
-        });
+            if (!user) {
+                throw new Error("Unauthorized");
+            }
 
-        if (!user) {
-            return res.status(401).json({ success: false, message: "Unauthorized" });
-        }
+            req.user = user;
+            next();
 
-        req.user = user;
-        next();
     });
 };
-
 
 export const allowTo = (role = [])=>{
     return asyncHandler(async(req,res,next)=>{
