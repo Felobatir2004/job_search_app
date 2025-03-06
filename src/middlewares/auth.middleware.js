@@ -47,7 +47,6 @@ export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.
     let decoded;
     try {
         decoded = verifyToken({ token, signature });
-        console.log("Decoded token:", decoded);
     } catch (err) {
         console.error("JWT verification failed:", err.message);
         throw new Error(`Invalid or expired token: ${err.message}`);

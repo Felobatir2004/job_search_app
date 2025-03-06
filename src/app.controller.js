@@ -45,7 +45,7 @@ const bootstrap = async (app, express)=>{
 
     app.use("/graphql",createHandler({schema: schema}))
 
-
+    app.use("/",(req,res)=> res.send("Hello world"))
     app.use("/auth",authRouter)
     app.use("/user",userRouter)
     app.use("/company",companyRouter)

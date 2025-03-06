@@ -7,6 +7,9 @@
     "dev": "nodemon --env-file=./src/config/.env ./index.js",
     "start": "node ./index.js"
   },
+  "engines": {
+    "node":"22.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
