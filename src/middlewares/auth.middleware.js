@@ -17,6 +17,7 @@ export const decodedToken = async ({ authorization = "", tokenType = tokenTypes.
     if (!token) {
         throw new Error("Token is missing");
     }
+    
 
     const ACCESS_SIGNATURE = process.env.USER_ACCESS_TOKEN || process.env.ADMIN_ACCESS_TOKEN;
     const REFRESH_SIGNATURE = process.env.USER_REFRESH_TOKEN || process.env.ADMIN_REFRESH_TOKEN;

@@ -285,7 +285,6 @@ export const reset_password = async (req,res,next)=>{
 export const refresh_token = async (req, res, next) => {
     try {
         const { authorization } = req.headers;
-        console.log(authorization);
         if (!authorization) {
             return res.status(401).json({ success: false, message: "Authorization header missing" });
         }
